@@ -44,6 +44,9 @@ public class ReferenceLoosePartFeeder extends ReferenceFeeder {
     @Element(required = false)
     private CvPipeline pipeline = createDefaultPipeline();
 
+    /** Pipeline property a script sets to end the feed's centring passes early. */
+    public static final String PASSES_COMPLETE_PROPERTY = "looseTray.passesComplete";
+
     private Location pickLocation;
 
     @Override
@@ -58,9 +61,15 @@ public class ReferenceLoosePartFeeder extends ReferenceFeeder {
         // Move to the feeder pick location
         MovableUtils.moveToLocationAtSafeZ(camera, location);
         try (CvPipeline pipeline = getPipeline()) {
+            pipeline.setProperty(PASSES_COMPLETE_PROPERTY, null);
             for (int i = 0; i < 3; i++) {
                 pickLocation = getPickLocation(pipeline, camera, nozzle);
                 camera.moveTo(pickLocation.derive(null, null, null, 0.0));
+                // A pipeline that already centred on the part (scripted vision that scans and
+                // confirms in its first pass) says so; repeating the pass would only repeat it.
+                if (Boolean.TRUE.equals(pipeline.getProperty(PASSES_COMPLETE_PROPERTY))) {
+                    break;
+                }
             }
             MainFrame.get()
                      .getCameraViews()
